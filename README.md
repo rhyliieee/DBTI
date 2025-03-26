@@ -23,34 +23,34 @@ An intelligent application that analyzes resumes and provides detailed feedback 
 ```bash
 git clone https://github.com/Direc-Business-Technologies-Inc/AI_REPOSITORY.git
 ```
-![clone](assets\clone.png)
+![clone](assets/clone.png)
 2. Change directory into project directory
 ```bash
 cd AI_REPOSITORY
 ```
-![clone](assets\change_directory.png)
+![clone](assets/change_directory.png)
 3. Create a Virtual Environment in terminal:
 ```bash
 python -m venv venv
 ```
-![clone](assets\venv.png)
+![clone](assets/venv.png)
 4. Activate Virtual Environment in terminal
 ```bash
 venv\Scripts\activate
 ```
-![clone](assets\venv_activate.png)
+![clone](assets/venv_activate.png)
 5. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-![clone](assets\requirements.png)
+![clone](assets/requirements.png)
 6. Create a `.env` file with your API keys:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 MISTRAL_API_KEY=your_mistral_api_key_here
 DIREC_RAR_API_KEY=your_rar_api_key_here
 ```
-![clone](assets\env_file.png)
+![clone](assets/env_file.png)
 
 ## Available Models
 
@@ -70,7 +70,7 @@ DIREC_RAR_API_KEY=your_rar_api_key_here
 ```bash
 uvicorn rar_endpoint:app --reload --host 0.0.0.0 --port 8080
 ```
-![clone](assets\run_api.png)
+![clone](assets/run_api.png)
 
 The api endpoint will be available at `http://localhost:8080`
 
@@ -85,12 +85,12 @@ Documentation for the API endpoints is available at:
 cd AI_REPOSITORY
 streamlit run rar_app.py
 ```
-![clone](assets\run_ui.png)
+![clone](assets/run_ui.png)
 
 The streamlit application will be available at `Local URL: http://localhost:8501`
 
 3. Visit the running streamlit UI, and ensure API Status is `API Connected`
-![clone](assets\status_check.png)
+![clone](assets/status_check.png)
 
 ## Project Structure
 
