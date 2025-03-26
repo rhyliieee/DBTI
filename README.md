@@ -105,6 +105,25 @@ AI_RAR/
     └── utils.py          # Utility functions and cache management     
 ```
 
+## System Architecture
+
+```mermaid
+graph TD
+    A[rar_app.py] --> B[rar_endpoint.py]
+    B --> C[agents.py]
+    C --> D[graph.py]
+    D --> E[data_models.py]
+    C --> F[prompts.yaml]
+```
+
+## Data Flow
+1. User interacts with rar_app.py interface
+2. Requests processed by rar_endpoint.py
+3. Agents initialized from agents.py
+4. Analysis workflow executed through graph.py
+5. Results structured using data_models.py
+6. Responses formatted and displayed in rar_app.py
+
 ## Error Handling
 
 The application includes robust error handling with:
