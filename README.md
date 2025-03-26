@@ -16,6 +16,7 @@ An intelligent application that analyzes resumes and provides detailed feedback 
 - Required API keys:
   - Groq API key
   - Mistral AI API key
+  - Direc RAR API key
 
 ## Installation
 
