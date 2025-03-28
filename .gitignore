@@ -139,6 +139,9 @@ venv.bak/
 # CACHE
 __pycache__/
 
+# DOCKER
+.dockerignore
+
 # Spyder project settings
 .spyderproject
 .spyproject

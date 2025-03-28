@@ -5,7 +5,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Literal, Dict, AnyStr, List
 
-from langchain_chroma import Chroma
+# from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.schema import Document
@@ -151,29 +151,29 @@ def flatten(all_rankings: Dict[AnyStr, List[ResumeFeedback]], jobs: List[Dict[An
         raise RuntimeError(f"Error flattening rankings and job descriptions: {str(e)}")
 
 # FUNCTION TO SETUP VECTOR STORE
-def setup_vector_store(cache_manager: CacheManager):
-    print(f"---SETTING UP VECTOR STORE---")
+# def setup_vector_store(cache_manager: CacheManager):
+#     print(f"---SETTING UP VECTOR STORE---")
 
-    # SET EMBEDDING MODEL TO CACHE IF NOT ALREADY SET
-    if not cache_manager.has("embedding_model"):
-        embedding_model = HuggingFaceInferenceAPIEmbeddings(
-            api_key=os.getenv("HF_API_KEY"),
-            model_name="sentence-transformers/all-MiniLM-l6-v2"
-        )
-        cache_manager.set("embedding_model", embedding_model)
+#     # SET EMBEDDING MODEL TO CACHE IF NOT ALREADY SET
+#     if not cache_manager.has("embedding_model"):
+#         embedding_model = HuggingFaceInferenceAPIEmbeddings(
+#             api_key=os.getenv("HF_API_KEY"),
+#             model_name="sentence-transformers/all-MiniLM-l6-v2"
+#         )
+#         cache_manager.set("embedding_model", embedding_model)
     
-    embedding_model = cache_manager.get("embedding_model")
+#     embedding_model = cache_manager.get("embedding_model")
 
-    # SET CHROMA VECTOR STORE TO CACHE IF NOT ALREADY SET
-    if not cache_manager.has("vector_store"):
-        vector_store = Chroma(
-            collection_name="resume_ranking",
-            embedding_function=embedding_model,
-            persist_directory="./chroma_db"
-        )
-        cache_manager.set("vector_store", vector_store)
+#     # SET CHROMA VECTOR STORE TO CACHE IF NOT ALREADY SET
+#     if not cache_manager.has("vector_store"):
+#         vector_store = Chroma(
+#             collection_name="resume_ranking",
+#             embedding_function=embedding_model,
+#             persist_directory="./chroma_db"
+#         )
+#         cache_manager.set("vector_store", vector_store)
 
-        return vector_store
+#         return vector_store
 
 # FUNCTION TO PROCESS INDIVIDUAL TXT FILES
 def process_txt(txt_file):

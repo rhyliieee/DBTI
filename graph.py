@@ -34,9 +34,6 @@ def rank_resumes_for_jobs(state: MultiJobComparisonState) -> MultiJobComparisonS
         processed_jobs = []
         jobs_to_process = job_openings
 
-        # TEMPORARY VARIABLE TO HOLD ANALYZED RESUME-JOB OPENING PAIRS
-        # resume_job_pairs = Dict[AnyStr, List[AnyStr]] # {'job_name': [resume1, resume2, resume3]}
-
         # FOR EACH JD, AND RESUME INVOKE RAR AGENT
         for job in jobs_to_process:
             job_name = job.get("name", "")
