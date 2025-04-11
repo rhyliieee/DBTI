@@ -1,5 +1,7 @@
 from langchain_groq import ChatGroq
 from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables import RunnableSerializable
@@ -8,6 +10,8 @@ from pathlib import Path
 import time
 import os
 from dotenv import load_dotenv
+from typing import Type
+from pydantic import BaseModel
 
 # INTERNAL IMPORTS
 from data_models import ResumeFeedback, CrossJobMatchResult
@@ -25,12 +29,24 @@ PROMPTS_PATH = Path("prompts.yaml")
 # CACHE ALL IMPORTS AS A DICTIONARY
 cache_imports = {}
 
-# LIST ALL MODELS AVAILABLE FROM GROQ
+# LIST OF ALL MODELS AVAILABLE FROM GROQ
 GROQ_MODELS = [
     "llama-3.3-70b-versatile", 
     "llama-3.1-8b-instant",
     "qwen-qwq-32b",
     "qwen-2.5-32b"
+]
+
+# LIST OF ALL MODELS AVAILABLE FROM GOOGLE GENAI 
+GOOGLE_MODELS = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite"
+]
+
+# LIST OF ALL MODELS AVAILABLE FROM OPENAI
+OPENAI_MODELS =[
+    "gpt-4o-mini-2024-07-18",
+    "gpt-4o-2024-11-20"
 ]
 
 # LIST ALL MODELS AVAILABLE FROM MISTRALAI
@@ -82,6 +98,34 @@ def initialize_llm(model_name: str) -> BaseChatModel:
                     time.sleep(retry_delay)
                     continue
                 raise e
+    elif model_name in GOOGLE_MODELS:
+        print(f"---LOADING {model_name} FROM GOOGLE GENAI---")
+        gemini_model = ChatGoogleGenerativeAI(
+            model=model_name,
+            api_key=os.getenv("GOOGLE_AI_STUDIO_API_KEY"),
+            temperature=0.2
+        )
+
+        # CACHE THE GOOGLE GENAI MODEL
+        cache_manager.set(model_name, gemini_model)
+
+        return gemini_model
+    
+    elif model_name in OPENAI_MODELS:
+        print(f"---LOADING {model_name} FROM OPENAI---")
+        openai_model = ChatOpenAI(
+            model=model_name,
+            api_key=os.getenv("OPENAI_API_KEY"),
+            temperature=0.5
+        )
+
+        # CACHE THE OPENAI MODEL
+        cache_manager.set(model_name, openai_model)
+
+        return openai_model
+    
+    else: 
+        raise ValueError(f"---MODEL {model_name} NOT FOUND---")
 
 
 # CREATE THE RESUME ANALYZER RERANKER AGENT
@@ -94,10 +138,10 @@ def create_rar_agent() -> RunnableSerializable:
         rar_agent_prompt = cache_manager.get("agent_prompts")["rar_agent_prompt"]
 
         # INITIALIZE THE LLM MODEL
-        rar_llm = initialize_llm("llama-3.3-70b-versatile")
+        rar_llm = initialize_llm("gpt-4o-2024-11-20")
 
         # ATTACH DATA MODEL TO AGENT
-        rar_llm_with_structured_output = rar_llm.with_structured_output(ResumeFeedback)
+        rar_llm_with_structured_output = rar_llm.with_structured_output(ResumeFeedback, method="json_schema")
 
         # PREPARE CHAT PROMPT TEMPLATE
         rar_agent_sys_prompt = ChatPromptTemplate.from_template(rar_agent_prompt)
@@ -113,7 +157,7 @@ def create_rar_agent() -> RunnableSerializable:
         raise RuntimeError(f"FAILED TO CREATE RAR AGENT: {e}")
 
 # CREATE THE CROSS JOB COMPARISON AGENT
-def create_cjc_agent() -> RunnableSerializable:
+def create_cjc_agent(DynamicDataModel: Type[BaseModel]) -> RunnableSerializable:
     try:
         # SET PROMPTS IF NOT IN CACHE
         if not cache_manager.has("agent_prompts"):
@@ -122,10 +166,10 @@ def create_cjc_agent() -> RunnableSerializable:
         cjc_agent_prompt = cache_manager.get("agent_prompts")["cjc_agent_prompt"]
 
         # INITIALIZE THE LLM MODEL
-        cjc_llm = initialize_llm('mistral-large-latest')
+        cjc_llm = initialize_llm('gpt-4o-2024-11-20')
 
         # ATTACH DATA MODEL TO AGENT
-        cjc_llm_with_structured_output = cjc_llm.with_structured_output(CrossJobMatchResult)
+        cjc_llm_with_structured_output = cjc_llm.with_structured_output(DynamicDataModel)
 
         # PREPARE CHAT PROMPT TEMPLATE
         cjc_agent_sys_prompt = ChatPromptTemplate.from_template(cjc_agent_prompt)

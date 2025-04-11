@@ -49,10 +49,11 @@ def create_langgraph_app():
         
         # Create and return the graph
         return create_multi_job_comparison_graph()
-    except ImportError:
-        # For development/testing, return a placeholder
-        print("WARNING: Using mock LangGraph application!")
-        return None
+    # except ImportError:
+    #     # For development/testing, return a placeholder
+    #     print("WARNING: Using mock LangGraph application!")
+    except Exception as e:
+        raise RuntimeError(f"---ERROR IN 'create_langgraph_app': {str(e)}---")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -206,6 +207,9 @@ async def start_analysis(request:Request, analysis_request: AnalysisRequest, bac
     except Exception as e:
         logger.error(f"GENERAL EXCEPTION: {str(e)}")
         return JSONResponse(content={"status":"error", "message": str(e)}, status_code=500)
+
+# POST REQUEST ENDPOINT FOR POSTING DATA TO LARK BASE
+@app.post("/ai/rar/v1/post_to_lark")
 
 @app.get("/ai/rar/v1/status/{trace_id}", response_model=StatusResponse)
 async def get_status(trace_id: str):

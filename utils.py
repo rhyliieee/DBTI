@@ -3,7 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 from threading import Lock
-from typing import Any, Literal, Dict, AnyStr, List
+from typing import Any, Literal, Dict, AnyStr, List, Tuple, Annotated
+from pydantic import BaseModel, create_model
 
 # from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
@@ -124,31 +125,65 @@ def process_directory(directory_path, file_content):
     return results
 
 # FUNCTION TO FLATTEN RESUME FEEDBACK RANKINGS AND JOB DESCRIPTIONS
-def flatten(all_rankings: Dict[AnyStr, List[ResumeFeedback]], jobs: List[Dict[AnyStr, AnyStr]]):
+# def flatten(all_rankings: Dict[AnyStr, List[ResumeFeedback]], jobs: List[Dict[AnyStr, AnyStr]]):
+#     try:
+#         flattened_string = ""
+#         num_jobs = len(jobs)
+
+#         for job in jobs:
+#             num_jobs -= 1
+#             print(f'---FLATTENING {job.get("name")} ({num_jobs} LEFT)---')
+#             flattened_job_description = f"# Job Openings: \nFileName: {job.get('name')}\n{job.get('content')}\n\n# Resume Ranking and Analysis:"
+#             flattened_candidates = ""
+#             for job_name, ranking in all_rankings.items():
+#                 if job_name == job.get("name"):
+#                     for idx, candidate in enumerate(ranking):
+#                         flattened_candidates += f"""\n## Rank {idx+1}\n## Candidate Name: {candidate.candidate_name}
+# ## Analysis: {candidate.analysis}
+# ## Scores: {candidate.scores}
+# ## Total Score: {candidate.total_score}
+# ## Key Strengths: {candidate.key_strengths}
+# ## Areas for Improvement: {candidate.areas_for_improvement}\n"""
+                        
+#                     flattened_string += f"{flattened_job_description}\n{flattened_candidates}\n"
+
+#         return flattened_string
+#     except Exception as e:
+#         raise RuntimeError(f"Error flattening rankings and job descriptions: {str(e)}")
+
+# (OPENAI/GEMINI) FUNCTION TO FLATTEN RESUME FEEDBACK RANKINGS AND JOB DESCRIPTIONS
+def flatten(all_rankings: List[Tuple[AnyStr, List[ResumeFeedback]]], jobs: List[Dict[AnyStr, AnyStr]]):
     try:
         flattened_string = ""
-        num_jobs = len(jobs)
 
         for job in jobs:
-            num_jobs -= 1
-            print(f'---FLATTENING {job.get("name")} ({num_jobs} LEFT)---')
-            flattened_job_description = f"# Job Openings: \nFileName: {job.get('name')}\n{job.get('content')}\n\n# Resume Ranking and Analysis:"
+            job_name = job.get("name", "")  # Default to empty string if name is missing
+            job_content = job.get("content", "") # Default to empty string if content is missing.
+            flattened_job_description = f"# Job Openings:\nFileName: {job_name}\n{job_content}\n\n# Resume Ranking and Analysis:"
             flattened_candidates = ""
-            for job_name, ranking in all_rankings.items():
-                if job_name == job.get("name"):
+
+            for ranking_job_name, ranking in all_rankings.items():
+                if ranking_job_name == job_name:
                     for idx, candidate in enumerate(ranking):
-                        flattened_candidates += f"""\n## Rank {idx+1}\n## Candidate Name: {candidate.candidate_name}
+                        try:
+                            scores_str = '\n\t'.join([f'{key} - {value}' for key, value in candidate.scores.model_dump().items()])
+                            flattened_candidates += f"""
+## Rank {idx+1}
+## Candidate Name: {candidate.candidate_name}
 ## Analysis: {candidate.analysis}
-## Scores: {candidate.scores}
+## Scores: {scores_str}
 ## Total Score: {candidate.total_score}
 ## Key Strengths: {candidate.key_strengths}
 ## Areas for Improvement: {candidate.areas_for_improvement}\n"""
-                        
-                    flattened_string += f"{flattened_job_description}\n{flattened_candidates}\n"
-
+                        except AttributeError as e:
+                            print(f"Error processing candidate: {e}")
+                        except KeyError as e:
+                            print(f"Key Error processing candidate: {e}")
+            flattened_string += f"{flattened_job_description}\n{flattened_candidates}\n"
         return flattened_string
     except Exception as e:
         raise RuntimeError(f"Error flattening rankings and job descriptions: {str(e)}")
+
 
 # FUNCTION TO SETUP VECTOR STORE
 # def setup_vector_store(cache_manager: CacheManager):
@@ -216,3 +251,15 @@ def process_pdfs(pdf_files):
         temp_dir.cleanup()
     
     return documents
+
+
+# FUNCTION TO DYNAMICALLY CREATE A PYDANTIC MODEL FROM A DICTIONARY
+def _create_datamodel(model_name: str, fields: dict) -> BaseModel:
+    model_name = model_name if " " not in model_name else model_name.replace(" ", "_").capitalize()
+    return create_model(model_name, **fields)
+
+# FUNCTION TO CLEAN INVALIDE CHARACTERS FOR A PYDANTIC MODEL FIELDS
+def clean_fieldname(name: str) -> str:
+    return "".join(c if c.isalnum() else '_' for c in name)            
+
+

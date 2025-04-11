@@ -1,0 +1,41 @@
+"Build a prototype for a custom video interview platform that integrates OBS Studio with real-time communication capabilities. The prototype should include the following components:
+
+Web-based User Interface:
+
+A simple, link-based access system where an interview candidate clicks a unique URL to join the session.
+
+A UI that displays the candidate’s video feed while flashing interview questions beside it.
+
+OBS Studio Integration:
+
+Utilize OBS Studio (with the OBS WebSocket plugin) to remotely control recording sessions. The system should trigger OBS to start recording when the candidate the candidate clicks a start recording button.
+
+Ensure OBS captures both the candidate's video feed and the interview questions flashing beside the video.
+
+Real-Time Communication:
+
+Implement WebRTC to handle low-latency, real-time audio and video streaming.
+
+Use a signaling server (for example, Socket.IO) to manage connection setup between the client and server.
+
+Integrate a media server (e.g., Janus WebRTC Server or Kurento) to support multi-user sessions, if needed for additional features or scalability.
+
+Recording & Data Management:
+
+Automatically store the recorded sessions securely.
+
+Design the architecture to handle error conditions such as network disruptions, with robust reconnection strategies.
+
+Technology Stack:
+
+Frontend: HTML/CSS/JavaScript, utilizing modern frameworks as needed such as Tailwind, ReactJS, and Ready-Made Components.
+
+Backend: Node.js for signaling (Socket.IO) and integrating with the media server.
+
+Media Server: Janus, Kurento, or Mediasoup to handle real-time video conferencing.
+
+Integration with OBS Studio for video recording and scene management.
+
+Provide clear documentation on setting up the environment, deploying the solution, and instructions for testing the interview session from a candidate's perspective."
+
+"Focus on a modular architecture that allows future scalability and enhancements, and ensure the design prioritizes low latency and a smooth user experience."

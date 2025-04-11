@@ -21,16 +21,16 @@ st.set_page_config(
 )
 
 # API ENDPOINTS & HEADERS
-RAR_API_URL = os.environ.get("RAR_API_URL", "http://localhost:8080") # Corrected Env Var Name
-RAR_HEADERS = {"DIREC-AI-RAR-API-KEY": str(os.getenv("DIREC_RAR_API_KEY")).strip()} # Corrected Header Key and Env Var Name
+RAR_API_URL = os.environ.get("RAR_API_URL", "http://localhost:8080")
+RAR_HEADERS = {"DIREC-AI-RAR-API-KEY": str(os.getenv("DIREC_RAR_API_KEY")).strip()}
 JDW_API_URL = os.environ.get("JDW_API_URL", "http://localhost:8090")
-JDW_HEADERS = {"DIREC-AI-JDW-API-KEY": "jdw_d39_8bb3_4795_ae2e_a8ab6b526210"}
+JDW_HEADERS = {"DIREC-AI-JDW-API-KEY": str(os.getenv("JDW_AGENT_API_KEY")).strip()}
 
 # Initialize session state
 if "job_openings" not in st.session_state:
     st.session_state.job_openings = []
-if "written_job_openings" not in st.session_state:
-    st.session_state.written_job_openings = []
+if "written_job_descriptions" not in st.session_state:
+    st.session_state.written_job_descriptions = []
 if "resumes" not in st.session_state:
     st.session_state.resumes = []
 if "uploaded_dir" not in st.session_state:
@@ -39,14 +39,20 @@ if "results" not in st.session_state:
     st.session_state.results = None
 if "job_processing_status" not in st.session_state:
     st.session_state.job_processing_status = {}
-if "api_running" not in st.session_state:
-    st.session_state.api_running = False
+    
+# API Status flags
+if "jdw_api_running" not in st.session_state:
+    st.session_state.jdw_api_running = False
+if "rar_api_running" not in st.session_state:
+    st.session_state.rar_api_running = False
+    
+# Trace IDs for each API
 if "rar_trace_id" not in st.session_state:
     st.session_state.rar_trace_id = None
 if "jdw_trace_id" not in st.session_state:
     st.session_state.jdw_trace_id = None
 
-# Functions to interact with the API
+# Functions to interact with the APIs
 def check_rar_api_status():
     try:
         response = requests.get(f"{RAR_API_URL}/ai/rar/v1/health", headers=RAR_HEADERS)
@@ -61,7 +67,28 @@ def check_jdw_api_status():
     except:
         return False
 
-def start_analysis():
+def start_job_description_writing():
+    """Start the job description writing process via JDW API"""
+    try:
+        payload = {
+            "job_openings": st.session_state.job_openings
+        }
+        response = requests.post(f"{JDW_API_URL}/ai/jdw/v1/job_description_writer", json=payload, headers=JDW_HEADERS)
+        if response.status_code == 200:
+            # Synchronous response
+            data = response.json()
+            st.session_state.jdw_trace_id = data.get("trace_id")
+            st.session_state.jdw_api_running = True
+            return True
+        else:
+            st.error(f"Failed to start job description writing: {response.text}")
+            return False
+    except Exception as e:
+        st.error(f"Error starting job description writing: {str(e)}")
+        return False
+
+def start_resume_analysis():
+    """Start the resume analysis process via RAR API"""
     try:
         # CONVERT DOCUMENT OBJECTS TO DICTIONARY
         serialized_resumes = []
@@ -71,83 +98,83 @@ def start_analysis():
                 "metadata": doc.metadata
             })
         
+        # Use written job descriptions if available, otherwise use original job openings
+        job_data = st.session_state.written_job_descriptions if st.session_state.written_job_descriptions else st.session_state.job_openings
+        
         payload = {
-            "job_openings": st.session_state.job_openings,
+            "job_openings": job_data,
             "resumes": serialized_resumes
         }
         response = requests.post(f"{RAR_API_URL}/ai/rar/v1/analyze_and_rerank", json=payload, headers=RAR_HEADERS)
-        if response.status_code == 202:
+        if response.status_code == 200:
+            # Handle synchronous response
             data = response.json()
-            st.session_state.rar_trace_id = data.get("trace_id") # Use rar_trace_id
-            st.session_state.api_running = True # Consider separate flags if JDW becomes async
+            st.session_state.results = data
+            return True
+        elif response.status_code == 202:
+            # Handle asynchronous response
+            data = response.json()
+            st.session_state.rar_trace_id = data.get("trace_id")
+            st.session_state.rar_api_running = True
             return True
         else:
-            st.error(f"Failed to start analysis: {response.text}")
+            st.error(f"Failed to start resume analysis: {response.text}")
             return False
     except Exception as e:
-        raise RuntimeError(f"Error starting analysis: {str(e)}")
+        st.error(f"Error starting resume analysis: {str(e)}")
+        return False
 
-def start_rewriting_job_descriptions():
+def check_jdw_status():
+    """Check the status of the job description writing task"""
+    if not st.session_state.jdw_trace_id:
+        return None
+
     try:
-        payload = {
-            "job_openings": st.session_state.job_openings
-        }
-        response = requests.post(f"{JDW_API_URL}/ai/jdw/v1/job_description_writer", json=payload, headers=JDW_HEADERS)
-        if response.status_code == 202:
+        response = requests.get(f"{JDW_API_URL}/ai/jdw/v1/status/{st.session_state.jdw_trace_id}", headers=JDW_HEADERS)
+        if response.status_code == 200:
             data = response.json()
-            st.session_state.jdw_trace_id = data.get("trace_id")
-            st.session_state.api_running = True
-            return True
-        else:
-            st.error(f"Failed to start rewriting job descriptions: {response.text}")
-            return False
+            if data.get("status") == "completed":
+                print(f'---JDW API STATUS: {data.get("status")}---')
+                st.session_state.jdw_api_running = False
+                # Store the written job descriptions
+                job_descriptions = data.get("results", {}).get("job_descriptions", [])
+                print(f'---JOB DESCRIPTIONS: {job_descriptions}---')
+                if job_descriptions:
+                    st.session_state.written_job_descriptions = job_descriptions
+                return "completed"
+            elif data.get("status") == "running":
+                st.session_state.job_processing_status = data.get("progress", {})
+                return "running"
+            else:
+                st.session_state.jdw_api_running = False
+                return "failed"
+        return None
     except Exception as e:
-        raise RuntimeError(f"Error starting rewriting job descriptions: {str(e)}")
+        st.error(f"Error checking job description status: {str(e)}")
+        return None
 
-def check_analysis_status():
+def check_rar_status():
+    """Check the status of the resume analysis task"""
     if not st.session_state.rar_trace_id:
         return None
 
     try:
-        # Added headers=RAR_HEADERS
         response = requests.get(f"{RAR_API_URL}/ai/rar/v1/status/{st.session_state.rar_trace_id}", headers=RAR_HEADERS)
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "completed":
-                st.session_state.api_running = False
+                st.session_state.rar_api_running = False
                 st.session_state.results = data.get("results")
                 return "completed"
             elif data.get("status") == "running":
                 st.session_state.job_processing_status = data.get("progress", {})
                 return "running"
             else:
-                st.session_state.api_running = False
+                st.session_state.rar_api_running = False
                 return "failed"
         return None
-    except:
-        return None
-
-def check_written_job_status():
-    if not st.session_state.jdw_trace_id:
-        return None
-
-    try:
-        # Added headers=JDW_HEADERS
-        response = requests.get(f"{JDW_API_URL}/ai/jdw/v1/status/{st.session_state.jdw_trace_id}", headers=JDW_HEADERS)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "completed":
-                st.session_state.api_running = False
-                st.session_state.written_job_openings = data.get("results")
-                return "completed"
-            elif data.get("status") == "running":
-                st.session_state.job_processing_status = data.get("progress", {})
-                return "running"
-            else:
-                st.session_state.api_running = False
-                return "failed"
-        return None
-    except:
+    except Exception as e:
+        st.error(f"Error checking resume analysis status: {str(e)}")
         return None
 
 # UI Functions
@@ -158,7 +185,7 @@ def render_sidebar():
         
         # API Status
         rar_api_status = check_rar_api_status()
-        jdw_api_status = check_jdw_api_status() # Assuming a similar health check exists or will be added for JDW
+        jdw_api_status = check_jdw_api_status()
         st.sidebar.markdown("### API Status")
         
         # Display status for RAR API
@@ -177,28 +204,25 @@ def render_sidebar():
         # Stats
         st.sidebar.markdown("### Statistics")
         st.sidebar.metric("Job Descriptions", len(st.session_state.job_openings))
+        st.sidebar.metric("Written Job Descriptions", len(st.session_state.written_job_descriptions))
         st.sidebar.metric("Resumes", len(st.session_state.resumes))
         
         # Reset button
         if st.sidebar.button("Reset All Data", use_container_width=True):
             st.session_state.job_openings = []
+            st.session_state.written_job_descriptions = []
             st.session_state.resumes = []
             st.session_state.uploaded_dir = set()
             st.session_state.results = None
             st.session_state.job_processing_status = {}
-            st.session_state.api_running = False
-            st.session_state.trace_id = None
+            st.session_state.jdw_api_running = False
+            st.session_state.rar_api_running = False
+            st.session_state.jdw_trace_id = None
+            st.session_state.rar_trace_id = None
             st.rerun()
 
-def display_written_job_descriptions():
-    if st.session_state.written_job_openings:
-        st.subheader("Rewritten Job Descriptions")
-        for job in st.session_state.written_job_openings:
-            with st.expander(f"{job['job_title']}", expanded=False):
-                st.text_area("Content", job['job_description'], height=200, key=f"written_job_{job['job_title']}", disabled=True)
-
-
 def render_upload_section():
+    # JOB DESCRIPTIONS SECTION
     st.subheader("Step 1: Upload Job Descriptions")
     job_description_option = st.radio(
         "Choose Job Description Upload Method",
@@ -216,12 +240,20 @@ def render_upload_section():
         )
 
         if uploaded_job_files:
+            new_jobs = []
             for job_file in uploaded_job_files:
                 job_desc = process_txt(job_file)
                 if job_desc:
-                    st.session_state.job_openings.extend(job_desc)
+                    new_jobs.extend(job_desc)
             
-        
+            if new_jobs:
+                # Add only new job descriptions
+                existing_names = {job['name'] for job in st.session_state.job_openings}
+                for job in new_jobs:
+                    if job['name'] not in existing_names:
+                        st.session_state.job_openings.append(job)
+                        existing_names.add(job['name'])
+            
     else:  # UPLOAD FOLDER OPTION
         upload_dir = st.text_input(
             "Enter the path to directory containing job description TXT files:",
@@ -240,42 +272,51 @@ def render_upload_section():
         elif upload_dir:
             st.error(f"Directory not found: {upload_dir}")
     
-    # USE EXTERNAL API TO REWRITE JOB DESCRIPTIONS
-    st.subheader("Step 1.5: Write Job Descriptions")
-    if st.button("Write Job Descriptions", disabled=len(st.session_state.job_openings) == 0, use_container_width=True):
-        if len(st.session_state.job_openings) == 0:
-            st.error("Please provide job descriptions first.")
-        else:
-            with st.spinner("Rewriting job descriptions..."):
-                try:
-                    jdw_payload = {
-                        "job_openings": st.session_state.job_openings
-                    }
-
-                    # SEND REQUEST TO JDW AGENT - Use JDW_API_URL and JDW_HEADERS
-                    response = requests.post(f"{JDW_API_URL}/ai/jdw/v1/job_description_writer", json=jdw_payload, headers=JDW_HEADERS)
-
-                    # Check for 202 Accepted for async start, or 200 for sync result
-                    if response.status_code == 202: # Assuming JDW writer is also async now
-                        data = response.json()
-                        st.session_state.jdw_trace_id = data.get("trace_id") # Store JDW trace ID
-                        st.info("Job description rewriting started...")
-                        # Need to implement polling for JDW status similar to RAR
-                        # For now, just indicate start
+    # JOB DESCRIPTION WRITING SECTION
+    st.subheader("Step 2: Write Job Descriptions")
+    
+    jdw_col1, jdw_col2 = st.columns([1, 2])
+    
+    with jdw_col1:
+        start_jdw_disabled = len(st.session_state.job_openings) == 0 or st.session_state.jdw_api_running
+        if st.button("Write Job Descriptions", disabled=start_jdw_disabled, use_container_width=True):
+            if len(st.session_state.job_openings) == 0:
+                st.error("Please upload job descriptions first.")
+            else:
+                with st.spinner("Starting job description writing..."):
+                    if start_job_description_writing():
+                        st.success("Job description writing started!")
                         st.rerun()
-                    elif response.status_code == 200: # Handle potential synchronous response
-                        data = response.json()
-                        st.session_state.written_job_openings = data.get("job_openings", [])
-                        st.json(data)
-                        st.success("Job descriptions rewritten successfully!")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to rewrite job descriptions: {response.text}")
-                except Exception as e:
-                    st.error(f"Error calling JDW API: {str(e)}")
-
-    # Resume upload
-    st.subheader("Step 2: Upload Resumes")
+    
+    with jdw_col2:
+        # Show status if job description writing is in progress
+        if st.session_state.jdw_api_running:
+            st.info("Job description writing in progress...")
+            
+            # Check status
+            jdw_status = check_jdw_status()
+            if jdw_status == "completed":
+                st.success("Job descriptions written successfully!")
+            elif jdw_status == "failed":
+                st.error("Job description writing failed.")
+            
+            # Show progress
+            for job_name, status in st.session_state.job_processing_status.items():
+                if status == "completed":
+                    st.success(f"✓ {job_name} processed")
+                else:
+                    st.warning(f"⟳ Processing {job_name}...")
+    
+    # Show written job descriptions if available
+    if st.session_state.written_job_descriptions:
+        with st.expander("View Written Job Descriptions", expanded=False):
+            for i, job in enumerate(st.session_state.written_job_descriptions):
+                st.markdown(f"#### {job.get('job_title', 'Job ' + str(i+1))}")
+                st.write(job.get('finalized_job_description', 'No description available'))
+                st.divider()
+    
+    # RESUME UPLOAD SECTION
+    st.subheader("Step 3: Upload Resumes")
     resume_upload_option = st.radio(
         "Choose upload method:",
         ("Upload individual PDF files", "Upload a folder of PDF files"),
@@ -292,7 +333,15 @@ def render_upload_section():
             
         if uploaded_files:
             st.success(f"{len(uploaded_files)} files uploaded")
-            st.session_state.resumes.extend(process_pdfs(uploaded_files))
+            
+            # Process and add new resumes
+            new_resumes = process_pdfs(uploaded_files)
+            existing_sources = {doc.metadata['source'] for doc in st.session_state.resumes}
+            
+            for resume in new_resumes:
+                if resume.metadata['source'] not in existing_sources:
+                    st.session_state.resumes.append(resume)
+                    existing_sources.add(resume.metadata['source'])
                 
     else:  # Upload folder option
         upload_dir = st.text_input(
@@ -302,7 +351,6 @@ def render_upload_section():
         )
             
         if upload_dir and os.path.isdir(upload_dir):
-
             if upload_dir not in st.session_state.uploaded_dir:
                 st.session_state.resumes.extend(process_directory(directory_path=upload_dir, file_content="resume"))
                 st.session_state.uploaded_dir.add(upload_dir)
@@ -313,13 +361,13 @@ def render_upload_section():
             st.error(f"Directory not found: {upload_dir}")
 
 def render_job_and_resume_list():
-    if st.session_state.job_openings or st.session_state.resumes:
+    if st.session_state.job_openings or st.session_state.written_job_descriptions or st.session_state.resumes:
         st.header("Uploaded Files")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.subheader("Job Descriptions")
+            st.subheader("Original Job Descriptions")
             if st.session_state.job_openings:
                 # Create a set to track unique job descriptions by name
                 unique_jobs = {}
@@ -339,21 +387,18 @@ def render_job_and_resume_list():
                 st.info("No job descriptions uploaded yet.")
         
         with col2:
-            st.subheader("Rewritten Job Descriptions")
-            if st.session_state.written_job_openings:
-                # CREATE A UNIQUE SET OF JOB DESCRIPTIONS BY JOB TITLE
-                unique_jd = {}
-                for job in st.session_state.written_job_openings:
-                    unique_jd[job['job_title']] = job['job_description']
-                
-                # DISPLAY ONLY THE UNIQUE REWRITTEN JOB DESCRIPTIONS
-                for i, (title, description) in enumerate(unique_jd.items()):
-                    with st.expander(f"{title}", expanded=False):
-                        st.text_area("Content", description, height=200, key=f"written_job_{i}", disabled=True)
+            st.subheader("Written Job Descriptions")
+            if st.session_state.written_job_descriptions:
+                for i, job in enumerate(st.session_state.written_job_descriptions):
+                    # print(st.session_state.written_job_descriptions)
+                    with st.expander(f"{job.get('job_title', 'Job ' + str(i+1))}", expanded=False):
+                        st.write("Content", job.get('finalized_job_description', 'No description'), height=200, key=f"written_job_{i}", disabled=True)
                         if st.button("Remove", key=f"remove_written_job_{i}"):
-                            # Remove the job from the original list
-                            st.session_state.written_job_openings = [j for j in st.session_state.written_job_openings if j['job_title'] != title]
+                            # Remove the job from the written list
+                            st.session_state.written_job_descriptions.pop(i)
                             st.rerun()
+            else:
+                st.info("No written job descriptions yet.")
 
         with col3:
             st.subheader("Resumes")
@@ -377,21 +422,41 @@ def render_job_and_resume_list():
                 st.info("No resumes uploaded yet.")
 
 def render_analysis_button():
-    st.header("Run Analysis")
+    st.header("Run Resume Analysis")
+    
+    # Check whether to enable the resume analysis button
+    # Should be enabled only if:
+    # 1. Job descriptions are available (either original or written)
+    # 2. Resumes are available
+    # 3. Job description writing is not in progress
+    # 4. Resume analysis is not in progress
+    
+    jobs_available = len(st.session_state.job_openings) > 0 or len(st.session_state.written_job_descriptions) > 0
+    resumes_available = len(st.session_state.resumes) > 0
+    disable_analysis = not jobs_available or not resumes_available or st.session_state.jdw_api_running or st.session_state.rar_api_running
     
     start_col, status_col = st.columns([1, 2])
     
     with start_col:
-        if st.button("Start Analysis", disabled=st.session_state.api_running or len(st.session_state.job_openings) == 0 or len(st.session_state.resumes) == 0, use_container_width=True):
-            start_analysis()
-            st.rerun()
+        if st.button("Start Resume Analysis", disabled=disable_analysis, use_container_width=True):
+            # Start the resume analysis
+            with st.spinner("Starting resume analysis..."):
+                if start_resume_analysis():
+                    st.success("Resume analysis started!")
+                    st.rerun()
     
     with status_col:
-        if st.session_state.api_running:
-            status_placeholder = st.empty()
-            status_placeholder.info("Analysis in progress...")
+        if st.session_state.rar_api_running:
+            st.info("Resume analysis in progress...")
             
-            # Add progress bars for jobs being processed
+            # Check status
+            rar_status = check_rar_status()
+            if rar_status == "completed":
+                st.success("Resume analysis completed successfully!")
+            elif rar_status == "failed":
+                st.error("Resume analysis failed.")
+            
+            # Show progress
             for job_name, status in st.session_state.job_processing_status.items():
                 if status == "completed":
                     st.success(f"✓ {job_name} processed")
@@ -565,19 +630,38 @@ def main():
     st.title("🤖 AI-Powered Resume Analyzer-Reranker Tool")
     st.markdown("""
     This application analyzes resumes/CVs and ranks them based on a job posting using AI.
+    
+    **Workflow:**
+    1. Upload job descriptions
+    2. Write formal job descriptions using AI
+    3. Upload resumes
+    4. Analyze and rank resumes against job descriptions
     """)
-    st.info("This app uses Groq API, LangChain, LangGraph, and models from LLaMA and MistralAI to analyze and rank resumes.")
+    st.info("This app uses AI-powered LangGraph applications to process job descriptions and analyze resumes.")
 
-    # RENDER SIDEBAR
+    # Render sidebar
     render_sidebar()
 
-    # Check if analysis is running
-    if st.session_state.api_running:
-        status = check_analysis_status()
-        if status == "completed":
-            st.success("Analysis completed successfully!")
-        elif status == "failed":
-            st.error("Analysis failed. Please try again.")
+    # Check API status and handle accordingly
+    if st.session_state.jdw_api_running:
+        jdw_status = check_jdw_status()
+        if jdw_status == "completed":
+            st.success("Job descriptions written successfully!")
+            st.session_state.jdw_api_running = False
+            st.rerun()
+        elif jdw_status == "failed":
+            st.error("Job description writing failed.")
+            st.session_state.jdw_api_running = False
+    
+    if st.session_state.rar_api_running:
+        rar_status = check_rar_status()
+        if rar_status == "completed":
+            st.success("Resume analysis completed successfully!")
+            st.session_state.rar_api_running = False
+            st.rerun()
+        elif rar_status == "failed":
+            st.error("Resume analysis failed.")
+            st.session_state.rar_api_running = False
     
     # Render main sections
     render_upload_section()
@@ -585,11 +669,10 @@ def main():
     render_analysis_button()
     render_results()
     
-    # Auto-refresh while analysis is running
-    if st.session_state.api_running:
+    # Auto-refresh while any API is running
+    if st.session_state.jdw_api_running or st.session_state.rar_api_running:
         time.sleep(2)
         st.rerun()
 
 if __name__ == "__main__":
     main()
-    # create_main_layout()

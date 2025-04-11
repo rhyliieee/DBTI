@@ -1,14 +1,14 @@
-from typing import Dict, List, Any, AnyStr
+from typing import Dict, List, Any, AnyStr, Type
+from pydantic import BaseModel, Field, create_model
 from langgraph.graph import START, END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 # UTILITIES
 import time
 
-
 # INTERNAL IMPORTS
-from data_models import MultiJobComparisonState
-from utils import CacheManager, flatten
+from data_models import MultiJobComparisonState, JobResumeMatch, CrossJobMatchResult
+from utils import CacheManager, flatten, clean_fieldname
 from agents import create_cjc_agent, create_rar_agent
 
 # INITIALIZE CACHE MANAGER
@@ -27,12 +27,11 @@ def rank_resumes_for_jobs(state: MultiJobComparisonState) -> MultiJobComparisonS
         # GET RAR AGENT CHAIN
         rar_agent_chain = cache_manager.get("rar_agent_chain")
 
-        job_openings = state.get('job_openings', [])
+        jobs_to_process = state.get('job_openings', [])
         resumes = state.get('resumes', '')
-        processed_job_description = state.get("processed_job_description", [])
+        # processed_job_description = state.get("processed_job_description", [])
         all_rankings = state.get("all_rankings", {})
         processed_jobs = []
-        jobs_to_process = job_openings
 
         # FOR EACH JD, AND RESUME INVOKE RAR AGENT
         for job in jobs_to_process:
@@ -42,8 +41,8 @@ def rank_resumes_for_jobs(state: MultiJobComparisonState) -> MultiJobComparisonS
             print(f"---PROCESSING JOB: {job_name}---")
 
             # SKIP CURRENT JOB OPENING IF ALREADY PROCESSED
-            if job_name in processed_job_description:
-                continue
+            # if job_name in processed_job_description:
+            #     continue
 
             # CACHE PROCESSED JOB OPENING FOR PAIRING
             if not cache_manager.has(job_name):
@@ -60,7 +59,12 @@ def rank_resumes_for_jobs(state: MultiJobComparisonState) -> MultiJobComparisonS
                 print(f"---DATA TYPE OF resume_job_pair: {type(resume_job_pair)}")
 
                 # SKIP IF JOB OPENING-RESUME PAIR IS ALREADY PROCESSED
-                if isinstance(resume_job_pair, list) and resume.metadata['source'] in resume_job_pair:
+                if isinstance(resume_job_pair, list) and job_name in resume_job_pair: 
+                    '''
+                    {
+                        "job_name": "rar_agent_output"
+                    }
+                    '''
                     continue
 
                 resume_content = resume.page_content
@@ -77,15 +81,17 @@ def rank_resumes_for_jobs(state: MultiJobComparisonState) -> MultiJobComparisonS
                 cache_manager.append_to_list(job_name, resume.metadata['source'])  
 
             # PERFORM RANKING AND STORE RESULTS
+            # print(f"---CONTENT OF CACHE_MANAGER: {cache_manager.get(job_name)}---\n\n")
+            # print(f"---TYPE OF CACHE_MANAGER: {type(cache_manager.get(job_name))}---\n\n")
             ranked_resumes = sorted(analyzed_resume, key=lambda record: record.total_score, reverse=True)
             all_rankings[job_name] = ranked_resumes
             processed_jobs.append(job_name)
         
         return {
-            "job_openings": job_openings,
+            "job_openings": jobs_to_process,
             "resumes": resumes,
-            "all_rankings": all_rankings,
-            "processed_job_description": processed_jobs
+            "all_rankings": all_rankings
+            # "processed_job_description": processed_jobs
         }
     except Exception as e:
         raise RuntimeError(f"ERROR IN 'rank_resumes_for_jobs' NODE: {str(e)}")
@@ -103,23 +109,119 @@ def cross_job_comparison(state: MultiJobComparisonState) -> MultiJobComparisonSt
         # FLATTEN JOB DESCRIPTION AND CANDIDATE RANKING BEFORE PASSING TO CJC AGENT
         flattened_jd_cr =  flatten(all_rankings, job_openings)
 
+        print(f"---INVOKING CROSS-JOB COMPARISON AGENT---")
+
+        # EXTRACT JOB NAMES FROM JOB OPENINGS
+        job_names = [job.get("name", f"unknown_job_{i}") for i, job in enumerate(job_openings)]
+
+        # EXTRACT RESUME NAMES FROM RESUMES
+        resume_names = [resume.metadata.get('source', f"unknown_resume_{i}") for i, resume in enumerate(resumes)]
+
+        # CREATE FIELDS FOR BEST MATCHES PER JOB DATA MODEL
+        best_matches_per_job_fields = {
+            clean_fieldname(job_name): (str, Field(..., description=f"Best matching candidate name for: {job_name}"))
+            for job_name in job_names
+        }
+
+        # CREATE INNER FIELDS FOR BEST MATCHES PER RESUME DATA MODEL
+        best_matches_per_resume_fields = {
+            clean_fieldname(resume_name): (str, Field(..., description=f"Best matching job opening for resume: {resume_name}"))
+            for resume_name in resume_names
+        }
+
+        # CREATE DYNAMIC PYDANTIC MODELS
+        DynamicBestMatchesPerJob: Type[BaseModel] = create_model(
+            "DynamicBestMatchesPerJob",
+            **best_matches_per_job_fields
+        )
+
+        DynamicBestMatchesPerResume: Type[BaseModel] = create_model(
+            "DynamicBestMatchesPerResume",
+            **best_matches_per_resume_fields
+        )
+
+        # CREATE TEMPORAR WRAPPER MODEL FOR LLM CALL
+        DynamicCrossJobMatchResult: Type[BaseModel] = create_model(
+            "DynamicCrossJobMatchResult",
+            job_resume_matches=(List[JobResumeMatch], Field(
+                ..., 
+                description="List of detailed matches between each job opening and resume")
+            ),
+            best_matches_per_job=(DynamicBestMatchesPerJob, Field(
+                ..., 
+                description="Best candidate identified for each specific job opening"
+            )),
+            best_matches_per_resume=(DynamicBestMatchesPerResume, Field(
+                ...,
+                description="Best job opening identified for each specific candidate resume"
+            )),
+            overall_recommendations=(str, Field(
+                ...,
+                description="Summary of optimal placements and strategic recommendations and insights"
+            ))
+        )
+
         # CREATE AND CHECK IF CJC AGENT CHAIN IS ALREADY CACHED
         if not cache_manager.has("cjc_agent_chain"):
-            cache_manager.set("cjc_agent_chain", create_cjc_agent())
+            cache_manager.set("cjc_agent_chain", create_cjc_agent(DynamicCrossJobMatchResult))
         
         # GET CJC AGENT CHAIN
         cjc_agent_chain = cache_manager.get("cjc_agent_chain")
 
-        print(f"---INVOKING CROSS-JOB COMPARISON AGENT---")
+        # RETRY LOGIC
+        max_retries = 3
+        retry_delay = 2
+        cjc_dynamic_result = None
 
-        # INVOKE THE CHAIN
-        cjc_result = cjc_agent_chain.invoke({"flattened_jd_cr": flattened_jd_cr})
+        for attempt in range(max_retries):
+            try:
+                # INVOKE THE CHAIN
+                cjc_dynamic_result = cjc_agent_chain.invoke({"flattened_jd_cr": flattened_jd_cr})
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"---ATTEMPT {attempt + 1} FAILED DURING DYNAIC CJC AGENT INVOCATION, RETRYING...---")
+                    time.sleep(retry_delay)
+                    continue
+
+                # IF ALL RETRIES FAILED, RE-RAISE THE LAST EXCEPTION
+                raise RuntimeError(f"---ERROR IN 'cross_job_comparison' NODE: {str(e)}---")
+    
+        if cjc_dynamic_result is None:
+            raise RuntimeError(f"---FAILED TO GET RESULT FROM CJC AGENT AFTER {max_retries} ATTEMPTS: {str(e)}---")
         
+        # CONVERT DYNAMIC RESULT TO FINAL STATE
+        print(f"---CONVERTING DYNAMIC RESULT TO FINAL STATE FORMAT---")
+
+        # POST PROCESSING: CONVERT DYNAMIC RESULT BACK TO STANDARD DICTIONARY
+        final_best_matches_per_job = {
+            original_name: getattr(
+                cjc_dynamic_result.best_matches_per_job,
+                clean_fieldname(original_name)
+            )
+            for original_name in job_names
+        }
+
+        final_best_matches_per_resume = {
+            original_name: getattr(
+                cjc_dynamic_result.best_matches_per_resume,
+                clean_fieldname(original_name)
+            )
+            for original_name in resume_names
+        }
+
+        final_cjc_result = CrossJobMatchResult(
+            job_resume_matches=cjc_dynamic_result.job_resume_matches,
+            best_matches_per_job=final_best_matches_per_job,
+            best_matches_per_resume=final_best_matches_per_resume,
+            overall_recommendation=cjc_dynamic_result.overall_recommendations
+        )
+
         return {
             "job_openings": job_openings,
             "resumes": resumes,
             "all_rankings": all_rankings,
-            "final_recommendations": cjc_result
+            "final_recommendations": final_cjc_result
         }
     except Exception as e:
         max_retries = 3
@@ -157,7 +259,12 @@ def are_all_jobs_processed(state: MultiJobComparisonState) -> str:
     """CHECK IF ALL JOBS HAVE BEEN PROCESSED"""
     try:
         job_openings = state.get("job_openings", [])
-        processed_jobs = state.get("processed_job_description", [])
+        # processed_jobs = state.get("processed_job_description", [])
+        processed_jobs = []
+
+        for job in job_openings:
+            if cache_manager.has(job.get("name")):
+                processed_jobs.append(job.get("name"))
         
         # COUNT UNIQUE JOB NAMES IN job_descriptions
         unique_job_names = set(job.get("name", "") for job in job_openings)

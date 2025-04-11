@@ -171,6 +171,14 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# LARK-EXTENSION FILES
+lark-extensions/job_description_writer/node_modules
+lark-extensions/job_description_writer/.env
+lark-extensions/job_description_writer/package-lock.json
+lark-extensions/job_description_writer/node_modules
+lark-extensions/package-lock.json
+lark-extension/
+
 # Ruff stuff:
 .ruff_cache/
 
