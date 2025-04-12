@@ -62,24 +62,6 @@ class MultiJobComparisonState(TypedDict):
     final_recommendations: CrossJobMatchResult
     # processed_job_description: Annotated[List[AnyStr], operator.add]
 
-# DATA MODEL TO STORE IN RECRUITMENT REQUEST TABLE
-class RecruitmentRequestData(BaseModel):
-    job_title: str
-    job_type: str
-    department: str
-    expected_start_date: str
-    job_duties: str
-    job_qualification: str
-
-# """
-# job_title => Position
-# job_type => Recruitment Type
-# department => Department
-# expected_start_date => Expected Start Date
-# job_duties => Job Duties
-# job_qualification => Required Qualifications
-# """
-
 ##### DATA MODEL FOR API REQUESTS #####
 
 # DATA MODEL FOR JOBJIGSAW REQUEST
@@ -98,9 +80,3 @@ class StatusResponse(BaseModel):
 class StartResponse(BaseModel):
     trace_id: str
     message: str
-
-# DATA MODEL FOR POSTING DATA TO LARK BASE
-class LarkPostRequest(BaseModel):
-    app_token: Annotated[str, "LARK APP TOKEN TO PASS TO LARK CLIENT"]
-    base_token: Annotated[str, "LARK PERSONAL BASE TOKEN TO PASS TO LARK CLIENT"]
-    data: RecruitmentRequestData

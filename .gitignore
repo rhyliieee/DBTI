@@ -175,7 +175,6 @@ cython_debug/
 lark-extensions/job_description_writer/node_modules
 lark-extensions/job_description_writer/.env
 lark-extensions/job_description_writer/package-lock.json
-lark-extensions/job_description_writer/node_modules
 lark-extensions/package-lock.json
 lark-extension/
 
