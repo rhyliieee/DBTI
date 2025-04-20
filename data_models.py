@@ -66,8 +66,8 @@ class MultiJobComparisonState(TypedDict):
 
 # DATA MODEL FOR JOBJIGSAW REQUEST
 class AnalysisRequest(BaseModel):
-    job_openings: list[dict[str, Any]]
-    resumes: list[dict[str, Any]]
+    job_openings: list[dict[str, Any]] # KEYS => name, content
+    resumes: list[dict[str, Any]] # KEYS => page_content, metadata {'source': file_name}
 
 # DATA MODEL FOR JOBJIGSAW STATUS OF ANALYSIS REQUEST
 class StatusResponse(BaseModel):
