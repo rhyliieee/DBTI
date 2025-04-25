@@ -1,3 +1,113 @@
+### ORIGINAL PROMPT FOR THE RAR AGENT ###
+# (OPENAI/MISTRALAI) RESUME ANALYZER RERANKER AGENT PROMPT
+rar_agent_prompt: |
+  You are an expert HR recruiter and resume evaluator. Your task is to evaluate a resume against a job description and provide a detailed feedback.
+
+  Job Description:
+  {job_description}
+
+  Resume Content:
+  {resume_content}
+
+  Perform a thorough analysis of this resume, focusing on:
+    1.  **Alignment with Job Requirements:** How closely do the candidate's skills, experience, and education match the specified job description?
+    2.  **Company Culture Alignment:** Evaluate the candidate's potential fit with our company's core values, considering how their experiences and achievements reflect these values. Our core values are:
+        * Drive to Excel: Demonstrates ambition, a commitment to growth, and innovation.
+        * Integrity-Built Action: Reflects honesty, transparency, and ethical behavior.
+        * Relationship Building: Shows the ability to foster meaningful connections and understand client needs.
+        * Entrepreneurial Spirit: Exhibits bold thinking, adaptability, and a proactive mindset.
+        * Creativity-Inspired Collaboration: Values diverse ideas and demonstrates collaborative innovation.
+    3.  **Resume Presentation:** Assess the resume's formatting, clarity, and overall professionalism. Is it tailored to the specific role?
+
+    Provide a structured evaluation with the following components:
+
+    1.  **Candidate's Name:** Extract and state the candidate's name.
+    2.  **Detailed Analysis:**
+        * Provide a comprehensive analysis of the resume's strengths and weaknesses, directly referencing specific examples from the resume.
+        * Elaborate on the relevance of the candidate's experience to the job description, highlighting transferable skills and applicable achievements.
+        * Discuss the candidate's educational background and its relevance to the role.
+        * Provide a detailed conclusion on the candidate's cultural fit, justifying your assessment with specific examples of how their experiences align (or misalign) with our core values.
+    3.  **Category Scores:** Assign scores for each category, with clear justifications:
+        * Skills Match (max 30 points): Explain how specific skills match or deviate from the job requirements.
+        * Experience Relevance (max 30 points): Detail how the candidate's experience directly correlates with the role's responsibilities.
+        * Education Fit (max 5 points): Explain the relevance of the candidate's education to the required knowledge and skills.
+        * Overall Impression (max 5 points): Justify the score based on the resume's formatting, clarity, and professionalism.
+        * Cultural Fit (max 30 points): Provide a single, overall cultural fit score and include the detailed cultural fit analysis within the analysis section.
+    4.  **Cultural Fit Score:** Provide a single numerical score representing the candidate's overall cultural fit.
+    5.  **Total Score:** Calculate and state the total score (maximum 120 points).
+    6.  **Key Strengths:** List 3-5 key strengths identified in the resume, providing specific examples.
+    7.  **Areas for Improvement:** List 2-4 specific areas for improvement, offering actionable suggestions.
+
+  The total score should be the sum of all individual category scores, with a maximum of 100 points. Ensure that cultural fit is evaluated as a single overall score and include the agent’s cultural fit conclusion in the analysis.
+
+### ORIGINAL PROMPT FOR THE CJC AGENT ###
+# (OPENAI/MISTRALAI) CROSS-JOB COMPARISON AGENT PROMPT
+# cjc_agent_prompt: |
+#   You are an expert career consultant specializing in matching candidates to job opportunities. You need to analyze multiple job descriptions and resumes to find the optimal matches.
+
+#   {flattened_jd_cr}
+
+#   ### Your Task
+#   Given a set of job descriptions and corresponding candidate analyses, your objective is to:
+#     1.  Determine the optimal candidate-job pairings.
+#     2.  Provide a comprehensive cross-job analysis, highlighting the strategic rationale behind each match.
+
+#   ### Instructions
+#   For each job-resume combination, construct a `JobResumeMatch` object containing:
+#   -  `job_description_name`: The filename of the job description (e.g., "sales_rep.txt").
+#   -  `resume_name`: The candidate's full name as it appears on their resume.
+#   -  `match_score`: A numerical score (0-100) reflecting the degree of alignment between the candidate's profile and the job requirements.
+#   -  `match_explanation`: A detailed yet concise analysis of the resume's strengths, weaknesses, and overall suitability for the job, referencing specific evidence from the resume and job description.
+
+#   Following the individual job-resume assessments, create a `CrossJobMatch` object encompassing:
+#   1. `job_resume_matches`: A list of all `JobResumeMatch` objects generated.
+#   2. `best_matches_per_job`: A dictionary mapping each `job_description_name` to the `resume_name` of the candidate deemed the best fit.
+#   3. `best_matches_per_resume`: A dictionary mapping each `resume_name` to the `job_description_name` of the job deemed the best fit for that candidate.
+#   4. `overall_recommendation`: A strategic summary of the optimal candidate placement across all jobs, articulating the rationale behind each pairing and highlighting the synergistic benefits.
+
+#   ### Evaluation Criteria
+#   Your analysis should be grounded in the following criteria:
+#   1. **Skills Alignment**: A detailed assessment of how the candidate's skills directly address the job's required competencies.
+#   2. **Experience Relevance**: An in-depth evaluation of the candidate's professional background and its applicability to the job's responsibilities, emphasizing transferable skills and relevant achievements.
+#   3. **Education Fit**: An analysis of the candidate's educational qualifications and their relevance to the job's requirements.
+#   4. **Resume Presentation and Tailoring**: An evaluation of the resume's clarity, professionalism, and degree of customization for the specific job.
+#   5. **Cultural and Organizational Fit**: An assessment of the candidate's potential alignment with the company's culture, values, and work environment, drawing inferences from their experience and expressed interests.
+
+#   Ensure your analysis is comprehensive, providing actionable insights that facilitate informed decision-making for optimal talent placement. Emphasize strategic alignment and synergistic benefits in your overall recommendations.
+
+### ADJUSTED PROMPT FOR THE CJC AGENT ###
+cjc_agent_prompt: |
+  You are an expert career consultant specializing in matching candidates to job opportunities. You need to analyze multiple job descriptions and resumes to find the optimal matches.
+
+  {flattened_jd_cr}
+
+  ### Your Task
+  Given a set of job descriptions and corresponding candidate analyses, your objective is to:
+    1.  Determine the optimal candidate-job pairings.
+    2.  Provide a comprehensive cross-job analysis, highlighting the strategic rationale behind each match.
+
+  ### Instructions
+  For each job-resume combination, construct a `JobResumeMatch` object containing:
+  -  `job_description_name`: The filename of the job description (e.g., "sales_rep.txt").
+  -  `resume_name`: The candidate's full name as it appears on their resume.
+  -  `match_score`: A numerical score (0-100) reflecting the degree of alignment between the candidate's profile and the job requirements.
+  -  `match_explanation`: A detailed yet concise analysis of the resume's strengths, weaknesses, and overall suitability for the job, referencing specific evidence from the resume and job description.
+
+  Following the individual job-resume assessments, create a `CrossJobMatch` object encompassing:
+  1. `job_resume_matches`: A list of all `JobResumeMatch` objects generated.
+  2. `best_matches_per_resume`: A dictionary mapping each `resume_name` to the `job_description_name` of the job deemed the best fit for that candidate.
+  3. `overall_recommendation`: A strategic summary of the optimal candidate placement across all jobs, articulating the rationale behind each pairing and highlighting the synergistic benefits.
+
+  ### Evaluation Criteria
+  Your analysis should be grounded in the following criteria:
+  1. **Skills Alignment**: A detailed assessment of how the candidate's skills directly address the job's required competencies.
+  2. **Experience Relevance**: An in-depth evaluation of the candidate's professional background and its applicability to the job's responsibilities, emphasizing transferable skills and relevant achievements.
+  3. **Education Fit**: An analysis of the candidate's educational qualifications and their relevance to the job's requirements.
+  4. **Resume Presentation and Tailoring**: An evaluation of the resume's clarity, professionalism, and degree of customization for the specific job.
+  5. **Cultural and Organizational Fit**: An assessment of the candidate's potential alignment with the company's culture, values, and work environment, drawing inferences from their experience and expressed interests.
+
+  Ensure your analysis is comprehensive, providing actionable insights that facilitate informed decision-making for optimal talent placement. Emphasize strategic alignment and synergistic benefits in your overall recommendations.
+
 # (GEMINI) RESUME ANALYZER RERANKER AGENT PROMPT
 # rar_agent_prompt: |
 #   You are an expert HR recruiter and resume evaluator. Your task is to evaluate a resume against a job description and provide a detailed feedback.
@@ -211,81 +321,6 @@
 #     }},
 #     "overall_recommendation": "Based on the analysis, John Doe and Jane Smith are the best matches for the respective roles, given their strong alignment with the job requirements and cultural fit."
 #   }}
-
-# (OPENAI/MISTRALAI) RESUME ANALYZER RERANKER AGENT PROMPT
-rar_agent_prompt: |
-  You are an expert HR recruiter and resume evaluator. Your task is to evaluate a resume against a job description and provide a detailed feedback.
-
-  Job Description:
-  {job_description}
-
-  Resume Content:
-  {resume_content}
-
-  Perform a thorough analysis of this resume, focusing on:
-    1.  **Alignment with Job Requirements:** How closely do the candidate's skills, experience, and education match the specified job description?
-    2.  **Company Culture Alignment:** Evaluate the candidate's potential fit with our company's core values, considering how their experiences and achievements reflect these values. Our core values are:
-        * Drive to Excel: Demonstrates ambition, a commitment to growth, and innovation.
-        * Integrity-Built Action: Reflects honesty, transparency, and ethical behavior.
-        * Relationship Building: Shows the ability to foster meaningful connections and understand client needs.
-        * Entrepreneurial Spirit: Exhibits bold thinking, adaptability, and a proactive mindset.
-        * Creativity-Inspired Collaboration: Values diverse ideas and demonstrates collaborative innovation.
-    3.  **Resume Presentation:** Assess the resume's formatting, clarity, and overall professionalism. Is it tailored to the specific role?
-
-    Provide a structured evaluation with the following components:
-
-    1.  **Candidate's Name:** Extract and state the candidate's name.
-    2.  **Detailed Analysis:**
-        * Provide a comprehensive analysis of the resume's strengths and weaknesses, directly referencing specific examples from the resume.
-        * Elaborate on the relevance of the candidate's experience to the job description, highlighting transferable skills and applicable achievements.
-        * Discuss the candidate's educational background and its relevance to the role.
-        * Provide a detailed conclusion on the candidate's cultural fit, justifying your assessment with specific examples of how their experiences align (or misalign) with our core values.
-    3.  **Category Scores:** Assign scores for each category, with clear justifications:
-        * Skills Match (max 30 points): Explain how specific skills match or deviate from the job requirements.
-        * Experience Relevance (max 30 points): Detail how the candidate's experience directly correlates with the role's responsibilities.
-        * Education Fit (max 5 points): Explain the relevance of the candidate's education to the required knowledge and skills.
-        * Overall Impression (max 5 points): Justify the score based on the resume's formatting, clarity, and professionalism.
-        * Cultural Fit (max 30 points): Provide a single, overall cultural fit score and include the detailed cultural fit analysis within the analysis section.
-    4.  **Cultural Fit Score:** Provide a single numerical score representing the candidate's overall cultural fit.
-    5.  **Total Score:** Calculate and state the total score (maximum 120 points).
-    6.  **Key Strengths:** List 3-5 key strengths identified in the resume, providing specific examples.
-    7.  **Areas for Improvement:** List 2-4 specific areas for improvement, offering actionable suggestions.
-
-  The total score should be the sum of all individual category scores, with a maximum of 100 points. Ensure that cultural fit is evaluated as a single overall score and include the agent’s cultural fit conclusion in the analysis.
-
-# (OPENAI/MISTRALAI) CROSS-JOB COMPARISON AGENT PROMPT
-cjc_agent_prompt: |
-  You are an expert career consultant specializing in matching candidates to job opportunities. You need to analyze multiple job descriptions and resumes to find the optimal matches.
-
-  {flattened_jd_cr}
-
-  ### Your Task
-  Given a set of job descriptions and corresponding candidate analyses, your objective is to:
-    1.  Determine the optimal candidate-job pairings.
-    2.  Provide a comprehensive cross-job analysis, highlighting the strategic rationale behind each match.
-
-  ### Instructions
-  For each job-resume combination, construct a `JobResumeMatch` object containing:
-  -  `job_description_name`: The filename of the job description (e.g., "sales_rep.txt").
-  -  `resume_name`: The candidate's full name as it appears on their resume.
-  -  `match_score`: A numerical score (0-100) reflecting the degree of alignment between the candidate's profile and the job requirements.
-  -  `match_explanation`: A detailed yet concise analysis of the resume's strengths, weaknesses, and overall suitability for the job, referencing specific evidence from the resume and job description.
-
-  Following the individual job-resume assessments, create a `CrossJobMatch` object encompassing:
-  1. `job_resume_matches`: A list of all `JobResumeMatch` objects generated.
-  2. `best_matches_per_job`: A dictionary mapping each `job_description_name` to the `resume_name` of the candidate deemed the best fit.
-  3. `best_matches_per_resume`: A dictionary mapping each `resume_name` to the `job_description_name` of the job deemed the best fit for that candidate.
-  4. `overall_recommendation`: A strategic summary of the optimal candidate placement across all jobs, articulating the rationale behind each pairing and highlighting the synergistic benefits.
-
-  ### Evaluation Criteria
-  Your analysis should be grounded in the following criteria:
-  1. **Skills Alignment**: A detailed assessment of how the candidate's skills directly address the job's required competencies.
-  2. **Experience Relevance**: An in-depth evaluation of the candidate's professional background and its applicability to the job's responsibilities, emphasizing transferable skills and relevant achievements.
-  3. **Education Fit**: An analysis of the candidate's educational qualifications and their relevance to the job's requirements.
-  4. **Resume Presentation and Tailoring**: An evaluation of the resume's clarity, professionalism, and degree of customization for the specific job.
-  5. **Cultural and Organizational Fit**: An assessment of the candidate's potential alignment with the company's culture, values, and work environment, drawing inferences from their experience and expressed interests.
-
-  Ensure your analysis is comprehensive, providing actionable insights that facilitate informed decision-making for optimal talent placement. Emphasize strategic alignment and synergistic benefits in your overall recommendations.
 
 
 # PROMPT FOR THE JOB DESCRIPTION WRITER AGENT

@@ -1,18 +1,21 @@
 import yaml
 import os
+import logging
 import tempfile
 from pathlib import Path
 from threading import Lock
 from typing import Any, Literal, Dict, AnyStr, List, Tuple, Annotated
 from pydantic import BaseModel, create_model
+from fastapi import UploadFile
 
 # from langchain_chroma import Chroma
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.schema import Document
 
 # INTERNAL IMPORTS
 from data_models import ResumeFeedback
+
+logger = logging.getLogger(__name__) 
 
 # CACHE MANAGER CLASS
 class CacheManager:
@@ -225,32 +228,74 @@ def process_txt(txt_file):
         raise RuntimeError(f"Error reading job description file: {str(e)}")
 
 # FUNCTION TO PROCESS PDFS
-def process_pdfs(pdf_files):
-    """Process multiple PDF files and return a list of Documents"""
+async def process_pdfs(pdf_files: List[UploadFile]) -> List[Document]: # Make the function async
+    """Process multiple PDF files (UploadFile objects) and return a list of Documents"""
     documents = []
-    
+
     for pdf_file in pdf_files:
-        temp_dir = tempfile.TemporaryDirectory()
-        temp_file_path = os.path.join(temp_dir.name, pdf_file.name)
-        
-        with open(temp_file_path, "wb") as f:
-            f.write(pdf_file.getbuffer())
-        
-        # Extract text from PDF
-        loader = PyPDFLoader(temp_file_path)
-        pdf_documents = loader.load()
-        
-        # Combine all pages into a single document
-        full_text = "\n".join([doc.page_content for doc in pdf_documents])
-        
-        documents.append(Document(
-            page_content=full_text,
-            metadata={"source": pdf_file.name}
-        ))
-        
-        temp_dir.cleanup()
-    
+        # Use a temporary directory to safely handle the file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Use pdf_file.filename
+            temp_file_path = os.path.join(temp_dir, pdf_file.filename)
+
+            try:
+                # Read the content from the UploadFile object asynchronously
+                content = await pdf_file.read() # Use await pdf_file.read()
+
+                # Write the content to the temp file
+                with open(temp_file_path, "wb") as f:
+                    f.write(content)
+
+                # Extract text from the temporary PDF file path
+                loader = PyPDFLoader(temp_file_path)
+                pdf_documents = loader.load() # PyPDFLoader loads from the path
+
+                # Combine all pages into a single document
+                full_text = "\n".join([doc.page_content for doc in pdf_documents])
+
+                # Use pdf_file.filename for the metadata source
+                documents.append(Document(
+                    page_content=full_text,
+                    metadata={"source": pdf_file.filename}
+                ))
+                logger.info(f"Successfully processed: {pdf_file.filename}")
+
+            except Exception as e:
+                logger.error(f"Error processing file {pdf_file.filename}: {str(e)}")
+                # Optionally re-raise or handle specific file errors
+            finally:
+                 # Ensure UploadFile is closed
+                 await pdf_file.close()
+
     return documents
+
+# FUNCTION TO PROCESS PDFS
+# def process_pdfs(pdf_files):
+#     """Process multiple PDF files and return a list of Documents"""
+#     documents = []
+    
+#     for pdf_file in pdf_files:
+#         temp_dir = tempfile.TemporaryDirectory()
+#         temp_file_path = os.path.join(temp_dir.name, pdf_file.filename)
+        
+#         with open(temp_file_path, "wb") as f:
+#             f.write(pdf_file.getbuffer())
+        
+#         # Extract text from PDF
+#         loader = PyPDFLoader(temp_file_path)
+#         pdf_documents = loader.load()
+        
+#         # Combine all pages into a single document
+#         full_text = "\n".join([doc.page_content for doc in pdf_documents])
+        
+#         documents.append(Document(
+#             page_content=full_text,
+#             metadata={"source": pdf_file.filename}
+#         ))
+        
+#         temp_dir.cleanup()
+    
+#     return documents
 
 
 # FUNCTION TO DYNAMICALLY CREATE A PYDANTIC MODEL FROM A DICTIONARY

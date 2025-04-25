@@ -44,10 +44,17 @@ GOOGLE_MODELS = [
 ]
 
 # LIST OF ALL MODELS AVAILABLE FROM OPENAI
-OPENAI_MODELS =[
-    "gpt-4o-mini-2024-07-18",
-    "gpt-4o-2024-11-20"
-]
+# OPENAI_MODELS =[
+#     "gpt-4o-mini-2024-07-18",
+#     "gpt-4o-2024-11-20",
+#     "o4-mini-2025-04-16"
+# ]
+
+OPENAI_MODELS = {
+    "4o-mini": "gpt-4o-mini-2024-07-18",
+    "4o": "gpt-4o-2024-11-20",
+    "o4-mini": "o4-mini-2025-04-16"
+}
 
 # LIST ALL MODELS AVAILABLE FROM MISTRALAI
 MISTRALAI_MODELS = [
@@ -114,9 +121,9 @@ def initialize_llm(model_name: str) -> BaseChatModel:
     elif model_name in OPENAI_MODELS:
         print(f"---LOADING {model_name} FROM OPENAI---")
         openai_model = ChatOpenAI(
-            model=model_name,
+            model=OPENAI_MODELS[model_name],
             api_key=os.getenv("OPENAI_API_KEY"),
-            temperature=0.5
+            # temperature=0.5
         )
 
         # CACHE THE OPENAI MODEL
@@ -138,7 +145,7 @@ def create_rar_agent() -> RunnableSerializable:
         rar_agent_prompt = cache_manager.get("agent_prompts")["rar_agent_prompt"]
 
         # INITIALIZE THE LLM MODEL
-        rar_llm = initialize_llm("gpt-4o-2024-11-20")
+        rar_llm = initialize_llm("4o-mini")
 
         # ATTACH DATA MODEL TO AGENT
         rar_llm_with_structured_output = rar_llm.with_structured_output(ResumeFeedback, method="json_schema")
@@ -166,7 +173,7 @@ def create_cjc_agent(DynamicDataModel: Type[BaseModel]) -> RunnableSerializable:
         cjc_agent_prompt = cache_manager.get("agent_prompts")["cjc_agent_prompt"]
 
         # INITIALIZE THE LLM MODEL
-        cjc_llm = initialize_llm('gpt-4o-2024-11-20')
+        cjc_llm = initialize_llm('o4-mini')
 
         # ATTACH DATA MODEL TO AGENT
         cjc_llm_with_structured_output = cjc_llm.with_structured_output(DynamicDataModel)
