@@ -106,7 +106,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
 # CONFIGURE DEFAULT OR ALLOWED API KEYS
 API_KEYS = {
-    os.getenv("DIREC_RAR_API_KEY"): "USER-RHYLIIEEE"
+    os.getenv("DIREC_RAR_API_KEY"): "USER-RHYLIIEEE",
 }
 
 async def get_api_key(api_key_header: str = Security(api_key_header)):
@@ -251,11 +251,9 @@ async def process_resumes_endpoint(
     logger.info(f"Processing {len(resumes)} resume files for API key {api_key[:8]}...")
     processed_docs: List[Document] = []
     try:
-        # Use the existing utility function to process UploadFile objects
         # Ensure process_pdfs handles potential errors for individual files gracefully
-        processed_docs = await process_pdfs(resumes) # Assuming process_pdfs returns List[Document]
+        processed_docs = await process_pdfs(resumes) 
 
-        # Convert Langchain Documents to the Pydantic ProcessedResume model
         response_data = [
             ProcessedResume(
                 page_content=doc.page_content,
