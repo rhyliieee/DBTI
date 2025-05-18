@@ -152,45 +152,46 @@ JobJigSaw/
 ```mermaid
 graph TD
     subgraph User Interface
-        A[jobjigsaw_app.py (Streamlit)]
+        A[jobjigsaw_app.py - Streamlit]
     end
 
     subgraph Backend APIs
-        B[rar_endpoint.py (FastAPI @ 8080)]
-        C[jdw_endpoint.py (FastAPI @ 8090, Assumed)]
+        B[rar_endpoint.py - FastAPI @ 8080]
+        C[jdw_endpoint.py - FastAPI @ 8090, Assumed]
     end
 
     subgraph Core Logic
         D[agents.py]
-        E[graph.py (RAR Workflow)]
+        E[graph.py - RAR Workflow]
         F[utils.py]
         G[data_models.py]
         H[prompts.yaml]
     end
 
     subgraph External Services
-        I[LLM APIs (Groq, Mistral, OpenAI)]
+        I[LLM APIs - Groq, Mistral, OpenAI]
     end
 
     A -- RAR Requests --> B
     A -- JDW Requests --> C
     B -- Uses --> D
     B -- Uses --> E
-    C -- Uses --> D # Assumes JDW also uses agents.py
+    C -- Uses --> D
     D -- Uses --> G
     D -- Uses --> H
     D -- Calls --> I
     E -- Uses --> D
     E -- Uses --> G
     B -- Uses --> F
-    C -- Uses --> F # Assumes JDW also uses utils.py
+    C -- Uses --> F
 
-    subgraph Lark Integration (Optional)
+    subgraph Lark_Integration_Optional
         J[lark-extensions/job_description_writer]
         K[Lark Base]
-        J -- Interacts with --> C # Extension likely calls JDW API
+        J -- Interacts with --> C
         J -- Interacts with --> K
     end
+
 
 ```
 
