@@ -11,9 +11,9 @@ An intelligent application suite that analyzes resumes, provides detailed feedba
 ## Features
 
 - **Resume Analysis & Reranking (RAR):** Analyzes resumes against job descriptions, providing scores, strengths, and areas for improvement.
-- **Job Description Writer (JDW):** Generates formal job descriptions from basic input text files.
+- **[Job Description Writer (JDW)](https://github.com/rhyliieee/JDW):** Generates formal job descriptions from basic input text files.
 - **Cross-Job Comparison:** Matches resumes with the most suitable job descriptions across multiple openings.
-- **Lark Base Integration:** Includes a Lark extension for processing job descriptions directly within Lark Base (see `lark-extensions/job_description_writer/README.md`).
+- **[Lark Base Integration](https://github.com/rhyliieee/JobJigSaw-Lark):** Includes a Lark extension for processing job descriptions directly within Lark Base (see `lark-extensions/job_description_writer/README.md`).
 - **Multi-LLM Support:** Compatible with models from Groq, Mistral AI, and OpenAI.
 - **Asynchronous Processing:** Utilizes FastAPI background tasks for non-blocking API operations.
 - **Caching System:** Improves performance for repeated operations.
