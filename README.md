@@ -1,7 +1,7 @@
 ### **IMPORTANT NOTICE !!**
 DON'T MIND THE `lark-extensions/` DIRECTORY. PLEASE REFER TO 
 [JOBJIGSAW-LARK](https://github.com/rhyliieee/JobJigSaw-Lark) 
-TO VIEW FULL IMPLEMENTATION
+TO VIEW FULL IMPLEMENTATION AND SETUP OF LARK-INTEGRATION
 
 
 # JobJigSaw: AI Resume Analyzer and Job Description Writer
