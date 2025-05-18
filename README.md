@@ -104,7 +104,7 @@ An intelligent application suite that analyzes resumes, provides detailed feedba
         The RAR API endpoint will be available at `http://localhost:8080`.
 
     *   **Terminal 2 (JDW API):**
-        *(Note: Assuming `jdw_endpoint.py` exists and is configured similarly)*
+        *(Note: Follow this [link] (https://github.com/rhyliieee/JDW) to setup JDW)*
         ```bash
         # Make sure jdw_endpoint.py exists and defines a FastAPI app named 'app'
         uvicorn jdw_endpoint:app --reload --host 0.0.0.0 --port 8090
